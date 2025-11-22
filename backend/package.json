@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/server.ts",
+    "start": "npx ts-node src/server.ts",
     "dev": "nodemon src/server.ts"
   },
   "dependencies": {
