@@ -19,7 +19,7 @@ const premiumData = {
 };
 
 app.use(paymentMiddleware(
-  "0x4ec137a8be0466c166997bcfc56ffdafc542201b", // your receiving wallet address
+  "0x5295023e202483932e4fa76a5af8e8fdb9cac528", // your receiving wallet address
   {  // Route configurations for protected endpoints
       "GET /premium": {
         // USDC amount in dollars
