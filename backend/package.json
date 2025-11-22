@@ -2,9 +2,9 @@
   "name": "x402-api",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "start": "npx ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
     "dev": "nodemon src/server.ts"
   },
   "dependencies": {
