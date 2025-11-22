@@ -6,7 +6,7 @@ from x402.clients.httpx import x402HttpxClient
 
 load_dotenv()  # Load PRIVATE_KEY
 
-async def main():
+async def call_premium_api():
     PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 
     if not PRIVATE_KEY:
@@ -29,5 +29,3 @@ async def main():
         print("📡 Status:", response.status_code)
         print("📦 Body:", await response.aread())
 
-if __name__ == "__main__":
-    asyncio.run(main())
