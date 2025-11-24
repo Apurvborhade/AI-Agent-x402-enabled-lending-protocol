@@ -1,12 +1,31 @@
 import express from 'express';
 import cors from 'cors'
 import { paymentMiddleware } from "x402-express";
+import { exact } from 'x402/dist/cjs/schemes';
+import {
+  Network,
+  PaymentPayload,
+  PaymentRequirements,
+  Price,
+  Resource,
+  settleResponseHeader,
+} from 'x402/dist/cjs/types/index'
+import { useFacilitator } from 'x402/dist/cjs/verify'
+import { processPriceToAtomicAmount, findMatchingPaymentRequirements } from "x402/dist/cjs/shared";
+import dotenv from 'dotenv';
 
+
+dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const facilitatorUrl = process.env.FACILITATOR_URL as Resource;
+const payTo = process.env.ADDRESS as `0x${string}`;
+
 app.use(cors())
 app.use(express.json())
+
+
 
 const premiumData = {
   plan: 'Gold',
@@ -19,23 +38,25 @@ const premiumData = {
 };
 
 app.use(paymentMiddleware(
-  "0x5295023e202483932e4fa76a5af8e8fdb9cac528", // your receiving wallet address
+  payTo, // your receiving wallet address
   {  // Route configurations for protected endpoints
-      "GET /premium": {
-        // USDC amount in dollars
-        price: "$0.001",
-        network: "base-sepolia",
-      },
+    "GET /premium": {
+      // USDC amount in dollars
+      price: "$0.001",
+      network: "base-sepolia",
     },
+  },
   {
-    url: "https://x402.org/facilitator", // Facilitator URL for Base Sepolia testnet.
+    url: facilitatorUrl, // Facilitator URL for Base Sepolia testnet.
   }
 ));
 
-app.get('/premium', (req, res) => {
+app.get('/premium', (req: any, res) => {
+  console.log(req.payment)
   res.json({
     status: 'success',
     data: premiumData,
+    req: req.headers,
   });
 });
 

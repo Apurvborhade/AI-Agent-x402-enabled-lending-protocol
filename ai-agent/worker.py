@@ -1,6 +1,7 @@
 import time
 import json
 from agent import call_premium_api
+import asyncio
 
 QUEUE_FILE = "queue.json"
 
@@ -16,21 +17,28 @@ def save_queue(queue):
         json.dump(queue, f, indent=2)
 
 def worker():
-    print("🟢 Agent worker running...")
+    print("\n🟢 Agent worker started...\n")
 
     while True:
         queue = load_queue()
 
+        print(f"📨 Queue length: {len(queue)}")
+
         if queue:
             task = queue.pop(0)
-            print("📌 Running task:", task["type"])
+            print(f"🚀 Running task: {task['type']}")
 
-            if task["type"] == "CALL_PREMIUM":
-                call_premium_api()
+            try:
+                if task["type"] == "call_premium_api":
+                    print("🔧 Executing call_premium_api()...")
+                    asyncio.run(call_premium_api())
+                    print("✅ call_premium_api() done.")
+            except Exception as e:
+                print("❌ ERROR inside task:", e)
 
             save_queue(queue)
 
-        time.sleep(1)
+        time.sleep(2)
 
 if __name__ == "__main__":
     worker()
