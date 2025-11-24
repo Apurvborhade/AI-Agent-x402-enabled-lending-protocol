@@ -2,3 +2,9 @@ backend/node_modules
 backend/.env
 
 ai-agent/.env
+
+
+credora-sdk/node_modules
+credora-sdk/dist
+credora-sdk/.env
+credora-sdk/.DS_Store

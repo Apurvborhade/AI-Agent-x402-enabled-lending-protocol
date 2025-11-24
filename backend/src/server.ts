@@ -42,7 +42,7 @@ app.use(paymentMiddleware(
   {  // Route configurations for protected endpoints
     "GET /premium": {
       // USDC amount in dollars
-      price: "$0.001",
+      price: "$10.001",
       network: "base-sepolia",
     },
   },
@@ -56,7 +56,6 @@ app.get('/premium', (req: any, res) => {
   res.json({
     status: 'success',
     data: premiumData,
-    req: req.headers,
   });
 });
 
