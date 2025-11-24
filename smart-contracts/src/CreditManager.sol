@@ -35,7 +35,9 @@ contract CreditManager {
     }
 
     function requestLoan(address borrower, uint256 amount) external {
-        s_users.push(borrower);
+        if (s_users[borrower] == address(0)) {
+            s_users.push(borrower);
+        }
 
         if (s_creditScore[borrower] == 0) {
             s_creditScore[borrower] = INITIAL_CREDIT_SCORE;
@@ -47,10 +49,7 @@ contract CreditManager {
         }
     }
 
-    function evaluateLoan(
-        address borrower,
-        uint256 loanAmount
-    ) internal returns (bool) {
+    function evaluateLoan(address borrower, uint256 loanAmount) internal returns (bool) {
         uint256 score = s_creditScore[borrower];
         // Simple evaluation logic based on credit score
         if (score >= LOAN_CREDIT_THRESHOLD) {
@@ -58,11 +57,7 @@ contract CreditManager {
             emit LoanApproved(borrower, loanAmount);
             return true;
         } else {
-            emit LoanRejected(
-                borrower,
-                loanAmount,
-                "Insufficient credit score"
-            );
+            emit LoanRejected(borrower, loanAmount, "Insufficient credit score");
             return false;
         }
     }
@@ -79,18 +74,12 @@ contract CreditManager {
     function onLoanTaken(address borrower, uint256 amount) internal {
         s_totalBorrowed[borrower] += amount;
         // Decrease credit score slightly for taking a loan
-        s_creditScore[borrower] = s_creditScore[borrower] > 10
-            ? s_creditScore[borrower] - 10
-            : 0;
+        s_creditScore[borrower] = s_creditScore[borrower] > 10 ? s_creditScore[borrower] - 10 : 0;
 
         emit CreditScoreUpdated(borrower, s_creditScore[borrower]);
     }
 
-    function onLoanRepaid(
-        address borrower,
-        uint256 amount,
-        bool onTime
-    ) internal {
+    function onLoanRepaid(address borrower, uint256 amount, bool onTime) internal {
         s_totalRepaid[borrower] += amount;
         if (onTime) {
             // Increase credit score for on-time repayment
@@ -99,9 +88,7 @@ contract CreditManager {
         } else {
             // Decrease credit score for late repayment
             s_lateRepayments[borrower] += 1;
-            s_creditScore[borrower] = s_creditScore[borrower] > 30
-                ? s_creditScore[borrower] - 30
-                : 0;
+            s_creditScore[borrower] = s_creditScore[borrower] > 30 ? s_creditScore[borrower] - 30 : 0;
             emit ReputationPenalty(borrower, s_creditScore[borrower]);
         }
         emit CreditScoreUpdated(borrower, s_creditScore[borrower]);
