@@ -108,7 +108,6 @@ async def call_premium_api():
         
             response = await _maybe_retry_with_credora(
                 account,
-                client,
                 response,
                 credora_client,
             )
@@ -187,16 +186,20 @@ def _loan_tx_defaults() -> Optional[Dict[str, Any]]:
 
 async def _maybe_retry_with_credora(
     account: Account,
-    client: x402HttpxClient,
     response: httpx.Response,
     credora_client: Optional[CredoraClient],
 ) -> httpx.Response:
     if not credora_client or response.status_code != 402:
         return response
 
+    if not response.json().get('error'):
+        print("402 Payment Required received from server, but no error details found.")
+        return response
+    
     if response.json()['error'] != "insufficient_funds":
         print("Payment required for unknown reason, not attempting Credora auto-loan.")
         return response
+    
     print("402 Payment Required received from server.")
     fallback_amount = os.getenv("CREDORA_FALLBACK_LOAN_WEI")
     fallback_value = int(fallback_amount) if fallback_amount else None
@@ -216,7 +219,17 @@ async def _maybe_retry_with_credora(
         print(f"Credora loan executed. Tx hash: {tx_hash}")
 
     print("🔁 Retrying premium API call after funding wallet…")
-    return await client.get("/premium")
+    BASE_URL = os.getenv("BASE_URL")
+    try:
+        async with x402HttpxClient(
+            account=account,
+            base_url=BASE_URL,
+            payment_requirements_selector=custom_payment_selector,
+            
+        ) as client:
+         return await client.get("/premium")
+    except Exception as e:
+        print("ERROR during x402 request:", pretty_error(e))
 
 
 async def _log_payment_response(response: httpx.Response):

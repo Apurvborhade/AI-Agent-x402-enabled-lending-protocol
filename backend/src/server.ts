@@ -36,7 +36,7 @@ app.use(paymentMiddleware(
   {  // Route configurations for protected endpoints
     "GET /premium": {
       // USDC amount in dollars
-      price: "$10.001",
+      price: "$5.999",
       network: "base-sepolia",
     },
   },

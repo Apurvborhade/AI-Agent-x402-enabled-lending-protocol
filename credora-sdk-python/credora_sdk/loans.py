@@ -56,8 +56,15 @@ class LoanClient:
         tx = fn.build_transaction(tx_params)
         print(f"Built transaction: {tx}")
         signed = self.account.sign_transaction(tx)
-        tx_hash = self.web3.eth.send_raw_transaction(signed.rawTransaction)
-        return self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        print(f"Signed transaction: {signed}")
+        tx_hash = self.web3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt is None:
+            raise Exception("Timeout waiting for transaction to be mined")
+
+        if receipt.get("blockNumber") is None:
+            raise Exception("Transaction still pending after timeout")
+        return receipt
 
     def _build_tx_params(self) -> Dict[str, Any]:
         params: Dict[str, Any] = {

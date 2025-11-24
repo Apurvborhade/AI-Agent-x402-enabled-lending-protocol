@@ -42,7 +42,7 @@ contract HelperConfig is Script {
 
     function getBaseNetworkConfig() internal view returns (NetworkConfig memory) {
         return NetworkConfig({
-            stablecoin: 0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D, // real Base USDC.e
+            stablecoin: 0x036CbD53842c5426634e7929541eC2318f3dCF7e, // real Base USDC.e
             deployerKey: vm.envUint("BASE_PRIVATE_KEY")
         });
     }
