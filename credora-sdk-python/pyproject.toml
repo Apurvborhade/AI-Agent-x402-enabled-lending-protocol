@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credora-sdk"
+version = "0.1.0"
+description = "Python SDK for interacting with Credora payment and loan workflows."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Credora", email = "support@credora.xyz" }
+]
+license = { text = "MIT" }
+dependencies = [
+  "web3>=6.12.0",
+  "eth-account>=0.13.0"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.urls]
+homepage = "https://credora.xyz"
+repository = "https://github.com/credora-labs/credora-sdk"
+
