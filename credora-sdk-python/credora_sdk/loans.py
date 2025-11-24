@@ -6,8 +6,12 @@ from typing import Any, Dict, Iterable, Optional, Sequence
 
 from eth_account.signers.local import LocalAccount
 from web3 import Web3
-from web3.contract import Contract, ContractFunction
 from web3.types import TxReceipt
+
+try:  # web3<7 exposed Contract* at web3.contract, web3>=7 moved them under web3.contract.contract
+    from web3.contract import Contract, ContractFunction
+except ImportError:  # pragma: no cover - defensive fallback for newer web3 builds
+    from web3.contract.contract import Contract, ContractFunction
 
 
 class LoanClient:
@@ -29,9 +33,10 @@ class LoanClient:
         )
         self.tx_defaults = tx_defaults or {}
 
-    def take_loan(self, amount_wei: int) -> TxReceipt:
+    def take_loan(self, borrower: str, amount_wei: int) -> TxReceipt:
         """Call requestLoan on the contract."""
-        fn = self.contract.functions.requestLoan(amount_wei)
+        fn = self.contract.functions.requestLoan(borrower,amount_wei)
+        print(f"Built function call: {fn}")
         return self._send_transaction(fn)
 
     def repay(self, amount_wei: int) -> TxReceipt:
@@ -47,7 +52,9 @@ class LoanClient:
 
     def _send_transaction(self, fn: ContractFunction) -> TxReceipt:
         tx_params = self._build_tx_params()
+        print(f"Transaction parameters: {tx_params}")
         tx = fn.build_transaction(tx_params)
+        print(f"Built transaction: {tx}")
         signed = self.account.sign_transaction(tx)
         tx_hash = self.web3.eth.send_raw_transaction(signed.rawTransaction)
         return self.web3.eth.wait_for_transaction_receipt(tx_hash)

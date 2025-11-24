@@ -1,0 +1,58 @@
+Metadata-Version: 2.4
+Name: credora-sdk
+Version: 0.1.0
+Summary: Python SDK for interacting with Credora payment and loan workflows.
+Author-email: Credora <support@credora.xyz>
+License: MIT
+Project-URL: homepage, https://credora.xyz
+Project-URL: repository, https://github.com/credora-labs/credora-sdk
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: web3>=6.12.0
+Requires-Dist: eth-account>=0.13.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+
+## Credora Python SDK
+
+This package mirrors the TypeScript SDK and wraps the Credora smart-contract
+loan workflow together with helper utilities for handling the `x-payment`
+header during Lightning-style payment retries.
+
+### Installation
+
+```bash
+pip install .  # from the repo root
+```
+
+### Quickstart
+
+```python
+from credora_sdk import CredoraClient
+
+client = CredoraClient(
+    rpc_url="https://sepolia.infura.io/v3/<key>",
+    private_key="<hex private key>",
+    loan_address="0x1234...",
+    loan_abi=json.load(open("Loan.json"))["abi"],
+)
+
+result = client.auto_loan_and_retry_payment(request.headers)
+if not result["ok"]:
+    raise RuntimeError(result["reason"])
+```
+
+### Local Development
+
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
+
+### Features
+
+- `LoanClient` for `requestLoan`, `repayLoan`, and `getLoan`
+- `PaymentHandler` to decode and inspect `x-payment` payloads
+- `CredoraClient` orchestrator that retries failed payments by taking a loan automatically
+

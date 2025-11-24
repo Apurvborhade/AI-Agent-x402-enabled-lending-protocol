@@ -32,6 +32,7 @@ class CredoraClient:
 
         self.account: LocalAccount = Account.from_key(private_key)
 
+
         self.loan = LoanClient(
             web3=self.web3,
             account=self.account,
@@ -41,14 +42,16 @@ class CredoraClient:
         )
         self.payments = PaymentHandler()
 
-    def handle_payment(self, headers: Mapping[str, str]) -> Dict[str, Any]:
-        header_value = headers.get(self.payments.header_key)
-        if not header_value:
-            return {"ok": False, "reason": "missing_payment_header"}
+    def handle_payment(self, response) -> Dict[str, Any]:
+        error = response['error']
+        accepts = response['accepts']
 
-        decoded = self.payments.parse_x402(header_value)
-        if self.payments.is_insufficient_funds(decoded):
-            details = self.payments.get_details(decoded)
+        if error != "insufficient_funds":
+            return {"ok": False, "reason": "unexpected_payment_error", "error": error}
+
+
+        if self.payments.is_insufficient_funds(response):
+            details = self.payments.get_details(accepts[0])
             return {
                 "ok": False,
                 "reason": "insufficient_funds",
@@ -57,10 +60,11 @@ class CredoraClient:
                 "asset": details.asset,
             }
 
-        return {"ok": True, "payload": decoded}
+        return {"ok": True, "payload": accepts}
 
     def auto_loan_and_retry_payment(
         self,
+        borrower: str,
         headers: Mapping[str, str],
         *,
         fallback_amount_wei: Optional[int] = None,
@@ -76,6 +80,7 @@ class CredoraClient:
         if amount is None:
             return {**result, "loanTaken": False, "reason": "missing_required_amount"}
 
-        receipt = self.loan.take_loan(int(amount))
+        print(f"Taking loan of {amount} wei from Credora Loan contract...")
+        receipt = self.loan.take_loan(borrower,int(amount))
         return {"ok": True, "loanTaken": True, "receipt": receipt}
 

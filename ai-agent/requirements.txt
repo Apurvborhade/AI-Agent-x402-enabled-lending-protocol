@@ -2,4 +2,5 @@ x402
 eth-account
 httpx
 python-dotenv
+-e ../credora-sdk-python
 

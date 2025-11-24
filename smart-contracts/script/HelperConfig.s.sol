@@ -6,7 +6,7 @@ import {ERC20Mock} from "test/mocks/ERC20Mock.sol";
 
 contract HelperConfig is Script {
     uint256 public constant LOCAL_BLOCKCHAIN_ID = 31337;
-    uint256 public constant BASE_CHAIN_ID = 84531;
+    uint256 public constant BASE_CHAIN_ID = 84532;
 
     uint256 public constant DEFAULT_ANVIL_KEY =
         uint256(uint160(address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)));

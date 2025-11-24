@@ -1,17 +1,11 @@
 import express from 'express';
 import cors from 'cors'
 import { paymentMiddleware } from "x402-express";
-import { exact } from 'x402/dist/cjs/schemes';
+
 import {
-  Network,
-  PaymentPayload,
-  PaymentRequirements,
-  Price,
   Resource,
-  settleResponseHeader,
 } from 'x402/dist/cjs/types/index'
-import { useFacilitator } from 'x402/dist/cjs/verify'
-import { processPriceToAtomicAmount, findMatchingPaymentRequirements } from "x402/dist/cjs/shared";
+
 import dotenv from 'dotenv';
 
 
@@ -52,6 +46,7 @@ app.use(paymentMiddleware(
 ));
 
 app.get('/premium', (req: any, res) => {
+  console.log("Request: ", req)
   console.log(req.payment)
   res.json({
     status: 'success',

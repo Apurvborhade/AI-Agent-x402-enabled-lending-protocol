@@ -44,8 +44,8 @@ export class CredoraClient {
         return { ok: true, payload: decoded };
     }
 
-    async autoLoanAndRetryPayment(headers: any) {
-        const result = await this.handlePayment(headers) as any;
+    async autoLoanAndRetryPayment(response: any) {
+        const result = await this.handlePayment(response.headers) as any;
 
         if (result.ok) return result;
 
