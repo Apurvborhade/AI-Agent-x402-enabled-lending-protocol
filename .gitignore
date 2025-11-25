@@ -10,3 +10,5 @@ credora-sdk/.env
 credora-sdk/.DS_Store
 
 formme.txt
+
+.venv
