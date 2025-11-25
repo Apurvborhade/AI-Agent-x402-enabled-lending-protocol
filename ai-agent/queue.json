@@ -1,11 +1,5 @@
 [
   {
     "type": "call_premium_api"
-  },
-  {
-    "type": "call_premium_api"
-  },
-  {
-    "type": "call_premium_api"
   }
 ]

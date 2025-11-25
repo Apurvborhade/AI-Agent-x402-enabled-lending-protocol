@@ -133,6 +133,7 @@ async def call_premium_api():
                 credora_fallback_loan_wei=None,
                 custom_payment_selector=custom_payment_selector,
                 request_kwargs=None,
+                repay_watcher=watcher,
             )
 
             print("Retried", response.status_code)

@@ -1,3 +1,4 @@
+import time
 from credora_sdk import CredoraClient
 from typing import Any, Dict, Mapping, MutableMapping, Optional, Sequence
 from functools import lru_cache
@@ -74,6 +75,7 @@ async def retry_with_credora(
     credora_fallback_loan_wei: Optional[int] = None,
     custom_payment_selector=Any,
     request_kwargs: Optional[Dict[str, Any]] = None,
+    repay_watcher: Optional[Any] = None,
 ) -> httpx.Response:
     if not credora_client or response.status_code != 402:
         return response
@@ -105,6 +107,12 @@ async def retry_with_credora(
         tx_hash = receipt.transactionHash.hex() if receipt else "unknown"
         print(f"Credora loan executed. Tx hash: {tx_hash}")
 
+        
+        if repay_watcher:
+            repay_watcher.loan_pending = True
+            repay_watcher.last_loan_time = time.time()
+            print("Watcher temporarily paused after loan; allowing API retry.")
+            
     print("🔁 Retrying premium API call after funding wallet…")
     
     

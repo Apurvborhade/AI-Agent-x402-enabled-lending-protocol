@@ -8,6 +8,7 @@ error LendingPool_OnlyCreditManager();
 error LendingPool__NotEnoughLiquidity();
 error LendingPool_OnlyOwner();
 error LendingPool__EmergencyWithdrawFailed();
+error LendingPool__TransferFailed();
 
 contract LendingPool {
     IERC20 public stablecoin;
@@ -88,8 +89,10 @@ contract LendingPool {
             revert LendingPool__NotEnoughLiquidity();
         }
         s_totalLiquidity -= amount;
-        stablecoin.transfer(to, amount);
-
+        bool success = stablecoin.transfer(to, amount);
+        if (!success) {
+            revert LendingPool__TransferFailed();
+        }
         emit LiquidityReduced(amount);
     }
 

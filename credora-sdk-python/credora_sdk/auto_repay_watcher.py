@@ -10,6 +10,10 @@ class AutoRepayer:
         self.token_contract = token_contract
         self.wallet = wallet
         self.last_balance = 0
+        
+        self.loan_pending = False
+        self.last_loan_time = 0
+        self.GRACE_SECONDS = 10
 
     async def get_balance(self):
         return self.token_contract.functions.balanceOf(self.wallet).call()      
@@ -21,7 +25,16 @@ class AutoRepayer:
         while True:
             await asyncio.sleep(CHECK_INTERVAL) 
            
-            
+            # 1. If loan was just taken → skip
+            if self.loan_pending:
+                if time.time() - self.last_loan_time < self.GRACE_SECONDS:
+                    print("⏳ Grace period active. Skipping auto-repay.")
+                    continue
+                else:
+                    print("Grace window ended → watcher active again")
+                    self.loan_pending = False
+                    
+                    
             print("Checking balance for auto-repay...")
             current_balance = await self.get_balance()
             

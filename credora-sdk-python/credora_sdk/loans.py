@@ -94,6 +94,8 @@ class LoanClient:
 
         if receipt.get("blockNumber") is None:
             raise Exception("Transaction still pending after timeout")
+        
+        print(f"Transaction mined in block {receipt}")
         return receipt
 
     def _build_tx_params(self) -> Dict[str, Any]:
