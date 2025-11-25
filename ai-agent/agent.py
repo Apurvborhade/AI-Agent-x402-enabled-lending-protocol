@@ -12,6 +12,7 @@ from eth_account import Account # type: ignore
 from x402.clients.httpx import x402HttpxClient  # type: ignore
 from x402.clients.base import decode_x_payment_response, x402Client     # type: ignore
 from web3.exceptions import ContractCustomError # type: ignore
+from credora_sdk.auto_repay_watcher import AutoRepayer  # type: ignore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SDK_PATH = PROJECT_ROOT / "credora-sdk-python"
@@ -21,6 +22,7 @@ if SDK_PATH.exists() and str(SDK_PATH) not in sys.path:
 from credora_sdk import CredoraClient # type: ignore
 from credora_sdk.utils import create_credora_client # type: ignore
 from credora_sdk.utils import retry_with_credora # type: ignore
+from credora_sdk.loans import LoanClient  # type: ignore
 
 load_dotenv()  # Load PRIVATE_KEY and BASE_URL
 
@@ -61,6 +63,8 @@ async def call_premium_api():
     BASE_URL = os.getenv("BASE_URL")
     CRDORA_RPC_URL = os.getenv("CREDORA_RPC_URL")
     CREDORA_LOAN_ADDRESS = os.getenv("CREDORA_LOAN_ADDRESS")
+
+    
     
     if not CRDORA_RPC_URL and not CREDORA_LOAN_ADDRESS:
         print("CREDORA_RPC_URL or CREDORA_LOAN_ADDRESS missing in .env")
@@ -85,7 +89,26 @@ async def call_premium_api():
 
     # Ethereum account for signing x402 payment
     account = Account.from_key(PRIVATE_KEY)
+    loan_client:LoanClient = LoanClient(
+        web3=credora_client.web3,
+        account=account,
+        contract_address=CREDORA_LOAN_ADDRESS,
+        abi=_load_abi(_resolve_abi_path()),
+    )
+    
+    print("StableCoin address:", loan_client.stablecoin.address)
+    print("StableCoin Contract:", loan_client.stablecoin.functions)
 
+    watcher = AutoRepayer(
+        loan=loan_client,
+        token_contract=loan_client.stablecoin,
+        wallet=account.address,
+    )   
+        
+
+     # Start watcher in background
+    asyncio.create_task(watcher.watch_and_repay())
+    
     print("Wallet:", account.address)
     print(f"Calling {BASE_URL}/premium using x402…")
 
@@ -96,6 +119,7 @@ async def call_premium_api():
             payment_requirements_selector=custom_payment_selector,
             
         ) as client:
+
 
             response = await client.get("/premium")
         
@@ -110,11 +134,15 @@ async def call_premium_api():
                 custom_payment_selector=custom_payment_selector,
                 request_kwargs=None,
             )
-            
+
             print("Retried", response.status_code)
             await _log_payment_response(response)
     except Exception as e:
         print("ERROR during x402 request:", e)
+            
+   
+    # 🚨 Keep the program alive so watcher can run
+    await asyncio.Event().wait()
 
 
 

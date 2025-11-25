@@ -106,6 +106,8 @@ async def retry_with_credora(
         print(f"Credora loan executed. Tx hash: {tx_hash}")
 
     print("🔁 Retrying premium API call after funding wallet…")
+    
+    
     try:
         async with x402HttpxClient(
             account=account,

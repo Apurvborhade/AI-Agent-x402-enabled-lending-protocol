@@ -12,6 +12,14 @@ try:  # web3<7 exposed Contract* at web3.contract, web3>=7 moved them under web3
     from web3.contract import Contract, ContractFunction
 except ImportError:  # pragma: no cover - defensive fallback for newer web3 builds
     from web3.contract.contract import Contract, ContractFunction
+import json
+import os
+
+def _load_usdc_abi() -> list:
+    """Load the USDC ABI from the abi directory."""
+    abi_path = os.path.join(os.path.dirname(__file__), "abi", "USDC.json")
+    with open(abi_path, "r") as f:
+        return json.load(f)
 
 
 class LoanClient:
@@ -32,15 +40,26 @@ class LoanClient:
             abi=abi,
         )
         self.tx_defaults = tx_defaults or {}
-
+        self.stablecoin:Contract = web3.eth.contract(
+            address=self.contract.functions.stablecoin().call(),
+            abi=_load_usdc_abi(),
+        )
+        
     def take_loan(self, borrower: str, amount_wei: int) -> TxReceipt:
         """Call requestLoan on the contract."""
         fn = self.contract.functions.requestLoan(borrower,amount_wei)
         print(f"Built function call: {fn}")
         return self._send_transaction(fn)
 
-    def repay(self, amount_wei: int) -> TxReceipt:
-        fn = self.contract.functions.repayLoan(amount_wei)
+    def allow_repay(self,amount_wei:int) -> TxReceipt:
+        fn = self.stablecoin.functions.approve(
+            self.contract.address,
+            amount_wei
+        )
+        return self._send_transaction(fn)
+    
+    def repay(self, amount_wei: int, borrower: str, on_time: bool = True) -> TxReceipt:
+        fn = self.contract.functions.repayLoan(borrower,amount_wei,on_time)
         return self._send_transaction(fn)
 
     def get_loan(self, borrower: str) -> Any:
@@ -48,17 +67,28 @@ class LoanClient:
             Web3.to_checksum_address(borrower)
         ).call()
 
+    def get_outstanding(self, borrower: str) -> int:
+        borrowed =  self.contract.functions.s_totalBorrowed(
+            Web3.to_checksum_address(borrower)
+        ).call()
+        
+        repaid = self.contract.functions.s_totalRepaid(
+            Web3.to_checksum_address(borrower)
+        ).call()
+        
+        
+        return borrowed - repaid
     # internal helpers -----------------------------------------------------
 
     def _send_transaction(self, fn: ContractFunction) -> TxReceipt:
         tx_params = self._build_tx_params()
-        print(f"Transaction parameters: {tx_params}")
         tx = fn.build_transaction(tx_params)
-        print(f"Built transaction: {tx}")
         signed = self.account.sign_transaction(tx)
-        print(f"Signed transaction: {signed}")
         tx_hash = self.web3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        
+        stablecoin_balance = self.stablecoin.functions.balanceOf(self.account.address).call()
+        print(f"Stablecoin balance after tx: {stablecoin_balance}")
         if receipt is None:
             raise Exception("Timeout waiting for transaction to be mined")
 
@@ -69,7 +99,7 @@ class LoanClient:
     def _build_tx_params(self) -> Dict[str, Any]:
         params: Dict[str, Any] = {
             "from": self.account.address,
-            "nonce": self.web3.eth.get_transaction_count(self.account.address),
+            "nonce": self.web3.eth.get_transaction_count(self.account.address,"pending"),
             "chainId": self.web3.eth.chain_id,
         }
 

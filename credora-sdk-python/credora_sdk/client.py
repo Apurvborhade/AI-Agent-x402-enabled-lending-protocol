@@ -70,6 +70,8 @@ class CredoraClient:
         fallback_amount_wei: Optional[int] = None,
     ) -> Dict[str, Any]:
         result = self.handle_payment(headers)
+        
+        print("Auto loan and retry payment result:", result)
         if result.get("ok"):
             return result
 
