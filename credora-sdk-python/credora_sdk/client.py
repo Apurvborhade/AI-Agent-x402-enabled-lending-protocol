@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, MutableMapping, Optional, Sequence
+from typing import Any, Dict, Mapping, Optional, Sequence
 
-from eth_account import Account
-from eth_account.signers.local import LocalAccount
-from web3 import Web3
+from eth_account import Account # type: ignore
+from eth_account.signers.local import LocalAccount # type: ignore
+from web3 import Web3 # type: ignore
 
 from .loans import LoanClient
 from .payments import PaymentHandler

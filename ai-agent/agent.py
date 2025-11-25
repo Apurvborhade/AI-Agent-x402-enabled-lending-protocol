@@ -6,19 +6,21 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import httpx
-from dotenv import load_dotenv
-from eth_account import Account
-from x402.clients.httpx import x402HttpxClient
-from x402.clients.base import decode_x_payment_response, x402Client
-from web3.exceptions import ContractCustomError
+import httpx # type: ignore
+from dotenv import load_dotenv # type: ignore
+from eth_account import Account # type: ignore
+from x402.clients.httpx import x402HttpxClient  # type: ignore
+from x402.clients.base import decode_x_payment_response, x402Client     # type: ignore
+from web3.exceptions import ContractCustomError # type: ignore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SDK_PATH = PROJECT_ROOT / "credora-sdk-python"
 if SDK_PATH.exists() and str(SDK_PATH) not in sys.path:
     sys.path.append(str(SDK_PATH))
 
-from credora_sdk import CredoraClient
+from credora_sdk import CredoraClient # type: ignore
+from credora_sdk.utils import create_credora_client # type: ignore
+from credora_sdk.utils import retry_with_credora # type: ignore
 
 load_dotenv()  # Load PRIVATE_KEY and BASE_URL
 
@@ -52,34 +54,18 @@ DEFAULT_ABI_PATH = (
 )
 
 
-def pretty_error(err):
-    # Case 1: Solidity Custom Error
-    if isinstance(err, ContractCustomError):
-        # err.args structure -> (message, data)
-        # data contains the raw hex revert data
-        message = err.args[0]
-        data = err.args[1] if len(err.args) > 1 else None
 
-        return {
-            "type": "ContractCustomError",
-            "message": message,
-            "data": data,
-        }
-
-    # Case 2: inner tuple-like error
-    if err.args and isinstance(err.args[0], tuple):
-        inner = err.args[0]
-        return {
-            "type": "TupleError",
-            "values": list(inner)
-        }
-
-    return {"type": "UnknownError", "message": str(err)}
 
 async def call_premium_api():
     PRIVATE_KEY = os.getenv("PRIVATE_KEY")
     BASE_URL = os.getenv("BASE_URL")
-
+    CRDORA_RPC_URL = os.getenv("CREDORA_RPC_URL")
+    CREDORA_LOAN_ADDRESS = os.getenv("CREDORA_LOAN_ADDRESS")
+    
+    if not CRDORA_RPC_URL and not CREDORA_LOAN_ADDRESS:
+        print("CREDORA_RPC_URL or CREDORA_LOAN_ADDRESS missing in .env")
+        return
+    
     if not PRIVATE_KEY:
         print("PRIVATE_KEY missing in .env")
         return
@@ -88,7 +74,14 @@ async def call_premium_api():
         print("BASE_URL missing in .env")
         return
 
-    credora_client = _maybe_create_credora_client(PRIVATE_KEY)
+    credora_client = create_credora_client(
+        PRIVATE_KEY,
+        resolve_abi_path=_resolve_abi_path,
+        load_abi=_load_abi,
+        loan_tx_defaults=_loan_tx_defaults,
+        credora_rpc_url=CRDORA_RPC_URL,
+        credora_loan_address=CREDORA_LOAN_ADDRESS,
+    )
 
     # Ethereum account for signing x402 payment
     account = Account.from_key(PRIVATE_KEY)
@@ -106,39 +99,25 @@ async def call_premium_api():
 
             response = await client.get("/premium")
         
-            response = await _maybe_retry_with_credora(
+            response = await retry_with_credora(
                 account,
                 response,
                 credora_client,
+                BASE_URL,
+                method="GET",
+                endpoint="/premium",
+                credora_fallback_loan_wei=None,
+                custom_payment_selector=custom_payment_selector,
+                request_kwargs=None,
             )
+            
             print("Retried", response.status_code)
             await _log_payment_response(response)
     except Exception as e:
-        print("ERROR during x402 request:", pretty_error(e))
+        print("ERROR during x402 request:", e)
 
 
-def _maybe_create_credora_client(private_key: str) -> Optional[CredoraClient]:
-    rpc_url = os.getenv("CREDORA_RPC_URL")
-    loan_address = os.getenv("CREDORA_LOAN_ADDRESS")
-    abi_path = _resolve_abi_path()
-    print(f"Creating CredoraClient with ABI path: {abi_path}")
-    if not rpc_url or not loan_address:
-        print("Credora SDK disabled: missing CREDORA_RPC_URL or CREDORA_LOAN_ADDRESS")
-        return None
 
-    try:
-        abi = _load_abi(abi_path)
-        loan_defaults = _loan_tx_defaults()
-        return CredoraClient(
-            rpc_url=rpc_url,
-            private_key=private_key,
-            loan_address=loan_address,
-            loan_abi=abi,
-            loan_tx_defaults=loan_defaults,
-        )
-    except Exception as exc:
-        print(f"Failed to initialize Credora SDK: {exc}")
-        return None
 
 
 @lru_cache()
@@ -182,54 +161,6 @@ def _loan_tx_defaults() -> Optional[Dict[str, Any]]:
         tx["maxPriorityFeePerGas"] = int(priority_fee)
 
     return tx or None
-
-
-async def _maybe_retry_with_credora(
-    account: Account,
-    response: httpx.Response,
-    credora_client: Optional[CredoraClient],
-) -> httpx.Response:
-    if not credora_client or response.status_code != 402:
-        return response
-
-    if not response.json().get('error'):
-        print("402 Payment Required received from server, but no error details found.")
-        return response
-    
-    if response.json()['error'] != "insufficient_funds":
-        print("Payment required for unknown reason, not attempting Credora auto-loan.")
-        return response
-    
-    print("402 Payment Required received from server.")
-    fallback_amount = os.getenv("CREDORA_FALLBACK_LOAN_WEI")
-    fallback_value = int(fallback_amount) if fallback_amount else None
-
-    print("Payment requires additional funds. Attempting Credora auto-loan…")
-    result = credora_client.auto_loan_and_retry_payment(
-        account.address,response.json(), fallback_amount_wei=fallback_value
-    )
-
-    if not result.get("ok"):
-        print(f"Credora auto-loan failed: {result}")
-        return response
-
-    if result.get("loanTaken"):
-        receipt = result.get("receipt")
-        tx_hash = receipt.transactionHash.hex() if receipt else "unknown"
-        print(f"Credora loan executed. Tx hash: {tx_hash}")
-
-    print("🔁 Retrying premium API call after funding wallet…")
-    BASE_URL = os.getenv("BASE_URL")
-    try:
-        async with x402HttpxClient(
-            account=account,
-            base_url=BASE_URL,
-            payment_requirements_selector=custom_payment_selector,
-            
-        ) as client:
-         return await client.get("/premium")
-    except Exception as e:
-        print("ERROR during x402 request:", pretty_error(e))
 
 
 async def _log_payment_response(response: httpx.Response):
